@@ -57,14 +57,14 @@ def main():
 
     for account_id in config_account_ids:
         if account_id not in all_account_ids:
-            logger.warn(
+            logger.warning(
                 f"invalid account id: {account_id} not in list of valid account ids: {all_account_ids.keys()}"
             )
             continue
 
         accnt_ids.append(all_account_ids[account_id])
     if (len(accnt_ids) == 0) and (len(config_account_ids) > 0):
-        logger.warn(
+        logger.warning(
             f"the user has lost access to ad accounts: {config_account_ids}"
         )
         sys.exit(5)
