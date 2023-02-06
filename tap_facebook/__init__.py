@@ -47,12 +47,12 @@ def main():
         if e.api_error_type() == "OAuthException" and e.api_error_code() == 190:
             sys.exit(5)
 
-
     casted_ad_accounts = cast(
         List[AdAccount], ad_accounts
     )
 
-    all_account_ids = {accnt["account_id"]: accnt["id"] for accnt in casted_ad_accounts}
+    all_account_ids = {accnt["account_id"]: accnt["id"]
+                       for accnt in casted_ad_accounts}
     accnt_ids = []
 
     for account_id in config_account_ids:
@@ -63,6 +63,11 @@ def main():
             continue
 
         accnt_ids.append(all_account_ids[account_id])
+    if (len(accnt_ids) == 0) and (len(config_account_ids) > 0):
+        logger.warn(
+            f"the user has lost access to ad accounts: {config_account_ids}"
+        )
+        sys.exit(5)
 
     do_sync(accnt_ids, args.config, args.state)
 
