@@ -28,7 +28,7 @@ def do_sync(account_ids, config, state):
 def main():
     args = singer.utils.parse_args([])
 
-    account_ids = args.config.get("account_ids", [])
+    config_account_ids = args.config.get("account_ids", [])
     access_token = args.config.get("access_token") or os.environ.get(
         "FACEBOOK_ACCESS_TOKEN"
     )
@@ -47,22 +47,27 @@ def main():
         if e.api_error_type() == "OAuthException" and e.api_error_code() == 190:
             sys.exit(5)
 
-
     casted_ad_accounts = cast(
         List[AdAccount], ad_accounts
     )
 
-    all_account_ids = {accnt["account_id"]: accnt["id"] for accnt in casted_ad_accounts}
+    all_account_ids = {accnt["account_id"]: accnt["id"]
+                       for accnt in casted_ad_accounts}
     accnt_ids = []
 
-    for account_id in account_ids:
+    for account_id in config_account_ids:
         if account_id not in all_account_ids:
-            logger.warn(
+            logger.warning(
                 f"invalid account id: {account_id} not in list of valid account ids: {all_account_ids.keys()}"
             )
             continue
 
         accnt_ids.append(all_account_ids[account_id])
+    if (len(accnt_ids) == 0) and (len(config_account_ids) > 0):
+        logger.warning(
+            f"the user has lost access to ad accounts: {config_account_ids}"
+        )
+        sys.exit(5)
 
     do_sync(accnt_ids, args.config, args.state)
 
