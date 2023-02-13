@@ -156,6 +156,9 @@ class FacebookAdsInsights:
             except Exception:
                 self.__advance_bookmark(account_id, state, prev_bookmark, tap_stream_id)
                 raise
+        if not prev_bookmark:
+            prev_bookmark = until
+
         return self.__advance_bookmark(account_id, state, prev_bookmark, tap_stream_id)
 
     def __get_start(self, account_id, state: dict, tap_stream_id: str) -> datetime:
@@ -243,6 +246,8 @@ class FacebookAdsInsights:
             bookmark_datetime = bookmark
         elif isinstance(bookmark, str):
             bookmark_datetime = parser.isoparse(bookmark)
+        elif isinstance(bookmark, date):
+            bookmark_datetime = parser.isoparse(bookmark.isoformat())
         else:
             raise ValueError(
                 f"bookmark is of type {type(bookmark)} but must be either string or datetime"
