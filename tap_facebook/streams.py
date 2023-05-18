@@ -112,7 +112,7 @@ class FacebookAdsInsights:
                     }
 
                     logger.info(f"account_id: {account_id}")
-                    logger.info(f"params: {params}")
+                    logger.info(f"params: {params['time_range']}")
 
                     attempt = 0
                     while True:
