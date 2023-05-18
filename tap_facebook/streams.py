@@ -119,7 +119,9 @@ class FacebookAdsInsights:
                         try:
                             result = self.__run_adreport(account_id, fields, params)
 
-                            ads_insights_result = cast(List[AdsInsights], result.get_result())
+                            ads_insights_result = cast(
+                                List[AdsInsights], result.get_result()
+                            )
 
                             ads_insight: AdsInsights
                             for ads_insight in ads_insights_result:
@@ -146,8 +148,14 @@ class FacebookAdsInsights:
                             # job failure, but we have no way of extracting the reasoning for the failure from
                             # the AdReportRun itself. Attempting to get the results of the job is the only real
                             # way of determining if we can retry.
-                            if e.api_error_code() == 2601 and e.api_error_subcode() == 1815107 and attempt < 5:
-                                logger.warning("encountered unknown, but seemingly temporary async error, retrying in 20s")
+                            if (
+                                e.api_error_code() == 2601
+                                and e.api_error_subcode() == 1815107
+                                and attempt < 5
+                            ):
+                                logger.warning(
+                                    "encountered unknown, but seemingly temporary async error, retrying in 20s"
+                                )
                                 time.sleep(20)
                                 attempt += 1
                                 continue
