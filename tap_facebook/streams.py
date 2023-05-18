@@ -3,7 +3,7 @@ import time
 from typing import Any, Sequence, Union, Optional, Dict, cast, List
 from datetime import timedelta, datetime, date
 from dateutil import parser
-
+import backoff
 from tap_facebook import utils
 from facebook_business.exceptions import FacebookRequestError
 from facebook_business.adobjects.adset import AdSet
@@ -193,6 +193,11 @@ class FacebookAdsInsights:
         logger.info(f"using 'start_date' from previous state: {current_bookmark}")
         return parser.isoparse(current_bookmark)
 
+    @backoff.on_exception(backoff.expo, FacebookRequestError, max_tries=5, base=5)
+    def __retrieve_job(self, async_job) -> AdReportRun:
+        job = cast(AdReportRun, async_job.api_get())
+        return job
+
     def __run_adreport(
         self,
         account_id: str,
@@ -205,7 +210,7 @@ class FacebookAdsInsights:
         )
 
         while True:
-            job = cast(AdReportRun, async_job.api_get())
+            job = self.__retrieve_job(async_job)
 
             pct: int = job["async_percent_completion"]
             status: str = job["async_status"]
