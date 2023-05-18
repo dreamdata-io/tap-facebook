@@ -3,7 +3,7 @@ import time
 from typing import Any, Sequence, Union, Optional, Dict, cast, List
 from datetime import timedelta, datetime, date
 from dateutil import parser
-
+import backoff
 from tap_facebook import utils
 from facebook_business.exceptions import FacebookRequestError
 from facebook_business.adobjects.adset import AdSet
@@ -112,14 +112,16 @@ class FacebookAdsInsights:
                     }
 
                     logger.info(f"account_id: {account_id}")
-                    logger.info(f"params: {params}")
+                    logger.info(f"params: {params['time_range']}")
 
                     attempt = 0
                     while True:
                         try:
                             result = self.__run_adreport(account_id, fields, params)
 
-                            ads_insights_result = cast(List[AdsInsights], result.get_result())
+                            ads_insights_result = cast(
+                                List[AdsInsights], result.get_result()
+                            )
 
                             ads_insight: AdsInsights
                             for ads_insight in ads_insights_result:
@@ -146,8 +148,14 @@ class FacebookAdsInsights:
                             # job failure, but we have no way of extracting the reasoning for the failure from
                             # the AdReportRun itself. Attempting to get the results of the job is the only real
                             # way of determining if we can retry.
-                            if e.api_error_code() == 2601 and e.api_error_subcode() == 1815107 and attempt < 5:
-                                logger.warning("encountered unknown, but seemingly temporary async error, retrying in 20s")
+                            if (
+                                e.api_error_code() == 2601
+                                and e.api_error_subcode() == 1815107
+                                and attempt < 5
+                            ):
+                                logger.warning(
+                                    "encountered unknown, but seemingly temporary async error, retrying in 20s"
+                                )
                                 time.sleep(20)
                                 attempt += 1
                                 continue
@@ -185,6 +193,11 @@ class FacebookAdsInsights:
         logger.info(f"using 'start_date' from previous state: {current_bookmark}")
         return parser.isoparse(current_bookmark)
 
+    @backoff.on_exception(backoff.expo, FacebookRequestError, max_tries=5, base=5)
+    def __retrieve_job(self, async_job) -> AdReportRun:
+        job = cast(AdReportRun, async_job.api_get())
+        return job
+
     def __run_adreport(
         self,
         account_id: str,
@@ -197,7 +210,7 @@ class FacebookAdsInsights:
         )
 
         while True:
-            job = cast(AdReportRun, async_job.api_get())
+            job = self.__retrieve_job(async_job)
 
             pct: int = job["async_percent_completion"]
             status: str = job["async_status"]
