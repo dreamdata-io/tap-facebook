@@ -1,5 +1,6 @@
 import singer
 import time
+from requests.exceptions import ReadTimeout
 from typing import Any, Sequence, Union, Optional, Dict, cast, List
 from datetime import timedelta, datetime, date
 from dateutil import parser
@@ -10,6 +11,7 @@ from facebook_business.adobjects.adset import AdSet
 from facebook_business.adobjects.adsinsights import AdsInsights
 from facebook_business.adobjects.adreportrun import AdReportRun
 
+
 logger = singer.get_logger()
 
 
@@ -19,7 +21,6 @@ class FacebookAdsInsights:
         self.bookmark_key = "date_start"
 
     def stream(self, account_ids: Sequence[str], state: dict, tap_stream_id: str):
-
         for account_id in account_ids:
             state = self.process_account(
                 account_id, tap_stream_id=tap_stream_id, state=state
@@ -101,7 +102,7 @@ class FacebookAdsInsights:
             else:
                 time_ranges = [(since, until)]
             try:
-                for (start, stop) in time_ranges:
+                for start, stop in time_ranges:
                     timerange = {"since": str(start), "until": str(stop)}
                     params = {
                         "level": "ad",
@@ -193,7 +194,9 @@ class FacebookAdsInsights:
         logger.info(f"using 'start_date' from previous state: {current_bookmark}")
         return parser.isoparse(current_bookmark)
 
-    @backoff.on_exception(backoff.expo, FacebookRequestError, max_tries=5, base=5)
+    @backoff.on_exception(
+        backoff.expo, (FacebookRequestError, ReadTimeout), max_tries=5, base=5
+    )
     def __retrieve_job(self, async_job) -> AdReportRun:
         job = cast(AdReportRun, async_job.api_get())
         return job
