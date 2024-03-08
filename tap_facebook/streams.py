@@ -79,28 +79,26 @@ class FacebookAdsInsights:
 
             logger.info(f"start_date: {since}")
             logger.info(f"end_date: {until}")
+            delta = timedelta(days=15)
 
-            if until - since > timedelta(days=1):
-                # for large intervals, the API returns 500
-                # handle this by chunking the dates instead
-                time_ranges = []
+            if since >= until:
+                return state
+            # for large intervals, the API returns 500
+            # handle this by chunking the dates instead
+            time_ranges = []
 
-                from_date = since
-                while True:
-                    to_date = from_date + timedelta(days=1)
+            from_date = since
+            while from_date < until:
+                to_date = from_date + delta
 
-                    if to_date > until:
-                        break
+                if to_date > until:
+                    to_date = until
 
-                    time_ranges.append((from_date, to_date))
+                time_ranges.append((from_date, to_date))
 
-                    # add one to to_date to make intervals non-overlapping
-                    from_date = to_date + timedelta(days=1)
+                # add one to to_date to make intervals non-overlapping
+                from_date = to_date + timedelta(days=1)
 
-                if from_date <= until:
-                    time_ranges.append((from_date, until))
-            else:
-                time_ranges = [(since, until)]
             try:
                 for start, stop in time_ranges:
                     timerange = {"since": str(start), "until": str(stop)}
