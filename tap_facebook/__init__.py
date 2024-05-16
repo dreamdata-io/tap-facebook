@@ -44,8 +44,12 @@ def main():
         user = User("me", api=api)
         ad_accounts = user.get_ad_accounts(fields=["account_id", "id"])
     except FacebookRequestError as e:
+        logger.error(e)
         if e.api_error_type() == "OAuthException" and e.api_error_code() == 190:
             sys.exit(5)
+    except Exception as e:
+        logger.error(e)
+        sys.exit(1)
 
     casted_ad_accounts = cast(List[AdAccount], ad_accounts)
 
