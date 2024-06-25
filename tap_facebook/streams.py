@@ -140,16 +140,22 @@ class FacebookAdsInsights:
 
                             break
                         except FacebookRequestError as e:
-                            # We frequently encounter this specific error, and have no concrete explanation for
+                            # first retry condition: We frequently encounter this specific error, and have no concrete explanation for
                             # what's actually wrong. It's seemingly temporary, since re-running the tap results
                             # in the job completing just fine.
                             # When this error occurs, technically the async_status of the AdReportRun indicates
                             # job failure, but we have no way of extracting the reasoning for the failure from
                             # the AdReportRun itself. Attempting to get the results of the job is the only real
                             # way of determining if we can retry.
+
+                            # second retry condition: This error seems to be a problem on Meta side, we also retry this: https://developers.facebook.com/community/threads/286697364476462/
+
+                            retry_conditions = (
+                                (e.api_error_code() == 2601 and e.api_error_subcode() == 1815107) or
+                                (e.api_error_code() == 100 and e.api_error_type() == "OAuthException")
+                            )
                             if (
-                                e.api_error_code() == 2601
-                                and e.api_error_subcode() == 1815107
+                                retry_conditions
                                 and attempt < 5
                             ):
                                 logger.warning(
