@@ -40,7 +40,7 @@ def main():
 
     # use
     try:
-        api = FacebookAdsApi.init(access_token=access_token, timeout=10)
+        api = FacebookAdsApi.init(access_token=access_token, timeout=30)
         user = User("me", api=api)
         ad_accounts = user.get_ad_accounts(fields=["account_id", "id"])
     except FacebookRequestError as e:
