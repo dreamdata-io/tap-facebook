@@ -1,6 +1,6 @@
 import singer
 import time
-from requests.exceptions import ReadTimeout
+from requests.exceptions import ReadTimeout, ConnectionError as RequestsConnectionError
 from typing import Any, Sequence, Union, Optional, Dict, cast, List
 from datetime import timedelta, datetime, date
 from dateutil import parser
@@ -166,6 +166,16 @@ class FacebookAdsInsights:
                                 continue
 
                             raise
+                        except RequestsConnectionError as e:
+                            if attempt < 5:
+                                wait_time = 5 * (2 ** attempt)  # 5, 10, 20, 40, 80 seconds
+                                logger.warning(
+                                    f"encountered connection error (network unreachable), retrying in {wait_time}s: {e}"
+                                )
+                                time.sleep(wait_time)
+                                attempt += 1
+                                continue
+                            raise
             except Exception:
                 self.__advance_bookmark(account_id, state, prev_bookmark, tap_stream_id)
                 raise
@@ -199,12 +209,18 @@ class FacebookAdsInsights:
         return parser.isoparse(current_bookmark)
 
     @backoff.on_exception(
-        backoff.expo, (FacebookRequestError, ReadTimeout), max_tries=5, base=5
+        backoff.expo, (FacebookRequestError, ReadTimeout, RequestsConnectionError), max_tries=5, base=5
     )
     def __retrieve_job(self, async_job) -> AdReportRun:
         job = cast(AdReportRun, async_job.api_get())
         return job
 
+    @backoff.on_exception(
+        backoff.expo,
+        RequestsConnectionError,
+        max_tries=5,
+        base=5
+    )
     def __run_adreport(
         self,
         account_id: str,

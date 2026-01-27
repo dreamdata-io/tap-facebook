@@ -2,8 +2,10 @@
 import os
 from typing import cast, List
 
+import backoff
 import singer
 import sys
+from requests.exceptions import ConnectionError as RequestsConnectionError
 
 from tap_facebook.streams import FacebookAdsInsights
 
@@ -15,6 +17,22 @@ from facebook_business.adobjects.adaccount import AdAccount
 logger = singer.get_logger()
 
 STREAMS = {"ads_insights": FacebookAdsInsights}
+
+
+@backoff.on_exception(
+    backoff.expo,
+    RequestsConnectionError,
+    max_tries=5,
+    base=5,
+    on_backoff=lambda details: logger.warning(
+        f"Connection error during API init, retrying in {details['wait']:.1f}s"
+    )
+)
+def get_ad_accounts_with_retry(access_token):
+    """Initialize API and fetch ad accounts with retry on connection errors."""
+    api = FacebookAdsApi.init(access_token=access_token, timeout=30)
+    user = User("me", api=api)
+    return api, user.get_ad_accounts(fields=["account_id", "id"])
 
 
 def do_sync(account_ids, config, state):
@@ -38,15 +56,13 @@ def main():
             f"missing required config 'access_token' or environment 'FACEBOOK_ACCESS_TOKEN'"
         )
 
-    # use
     try:
-        api = FacebookAdsApi.init(access_token=access_token, timeout=30)
-        user = User("me", api=api)
-        ad_accounts = user.get_ad_accounts(fields=["account_id", "id"])
+        api, ad_accounts = get_ad_accounts_with_retry(access_token)
     except FacebookRequestError as e:
         logger.error(e)
         if e.api_error_type() == "OAuthException" and e.api_error_code() == 190:
             sys.exit(5)
+        sys.exit(1)
     except Exception as e:
         logger.error(e)
         sys.exit(1)
