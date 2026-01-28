@@ -27,6 +27,31 @@ We recommend using a virtualenv:
 > pip install tap-facebook
 ```
 
+#### Alternative: Install with uv
+
+If you prefer using [uv](https://github.com/astral-sh/uv):
+
+```bash
+# Install dependencies and run in one command
+uv run tap-facebook -c config.json
+
+# Or install first, then run separately
+uv sync
+uv run tap-facebook -c config.json
+```
+
+To run discovery mode with uv:
+
+```bash
+uv run tap-facebook -c config.json --discover > catalog.json
+```
+
+Then run with the catalog:
+
+```bash
+uv run tap-facebook -c config.json -p catalog.json
+```
+
 ### Create a Facebook Ads App
 
 To use the Facebook Marketing API, you must create a Facebook Ads app. By creating a Facebook Ads app you will be able to use the Marketing API. [Create an app](https://developers.facebook.com/docs/marketing-apis)
